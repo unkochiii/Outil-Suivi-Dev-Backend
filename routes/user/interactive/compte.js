@@ -27,7 +27,7 @@ router.post("/login", async (req, res) => {
 
     // Chercher le compte (exclure hash/salt/token par sécurité)
     const account = await Account.findOne({ email }).select(
-      "+hash +salt +token"
+      "+hash +salt +token",
     );
 
     if (!account) {
@@ -67,7 +67,7 @@ router.post("/login", async (req, res) => {
         role: account.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     // Sauvegarder le token dans le compte (optionnel mais utile pour déconnexion)
@@ -83,7 +83,6 @@ router.post("/login", async (req, res) => {
         email: account.email,
         projectName: account.projectName,
         role: account.role,
-
         dueDate: account.dueDate,
       },
     });
@@ -101,7 +100,7 @@ router.get("/me", isAuthenticated, async (req, res) => {
   try {
     // Récupérer les données fraîches depuis la DB
     const account = await Account.findById(req.user._id).select(
-      "-hash -salt -token"
+      "-hash -salt -token",
     );
 
     if (!account) {
@@ -124,6 +123,27 @@ router.get("/me", isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur GET /me:", error);
+    res.status(500).json({ success: false, error: "Erreur serveur interne" });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// DÉCONNEXION
+// POST /logout
+// ═══════════════════════════════════════════════════════
+router.post("/logout", isAuthenticated, async (req, res) => {
+  try {
+    // Supprimer le token de la base de données
+    await Account.findByIdAndUpdate(req.user._id, {
+      token: null,
+    });
+
+    res.json({
+      success: true,
+      message: "Déconnexion réussie",
+    });
+  } catch (error) {
+    console.error("Erreur POST /logout:", error);
     res.status(500).json({ success: false, error: "Erreur serveur interne" });
   }
 });

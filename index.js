@@ -18,6 +18,9 @@ const rapportRoutes = require("./routes/user/interactive/repports");
 const taskAdminRoutes = require("./routes/admin/task/task");
 const taskRoutes = require("./routes/user/visual/tasks");
 
+const toDoAdminRoutes = require("./routes/admin/toDo/ToDo");
+const toDoRoutes = require("./routes/user/interactive/toDo");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -48,6 +51,9 @@ app.use(rapportRoutes);
 
 app.use(taskAdminRoutes);
 app.use(taskRoutes);
+
+app.use(toDoAdminRoutes);
+app.use(toDoRoutes);
 
 app.all(/.*/, function (req, res) {
   res.status(404).json({ message: "Page not found" });

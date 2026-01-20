@@ -96,9 +96,9 @@ const taskSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // ✅ Utilise createdAt/updatedAt automatiques
+    timestamps: true,
     toJSON: { transform: (doc, ret) => ret },
-  }
+  },
 );
 
 taskSchema.index({ owner: 1, assignedTo: 1, Done: 1 });

@@ -40,6 +40,12 @@ const reportSchema = new mongoose.Schema(
       trim: true,
       maxlength: [500, "Lieu trop long"],
     },
+    content: {
+      type: String,
+      required: [true, "Le contenu est requis"],
+      trim: true,
+      maxlength: [5000, "Contenu trop long"],
+    },
     priority: {
       type: String,
       enum: {
@@ -71,7 +77,7 @@ const reportSchema = new mongoose.Schema(
         return ret;
       },
     },
-  }
+  },
 );
 
 reportSchema.index({ owner: 1, assignedTo: 1, createdAt: -1 });

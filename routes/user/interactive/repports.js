@@ -21,13 +21,13 @@ router.post(
   upload.array("images", 2),
   async (req, res) => {
     try {
-      const { reportTitle, place, priority, assignedTo } = req.body;
+      const { reportTitle, place, content, priority, assignedTo } = req.body;
 
       // Validation
-      if (!reportTitle?.trim() || !place?.trim()) {
+      if (!reportTitle?.trim() || !place?.trim() || !content?.trim()) {
         return res.status(400).json({
           success: false,
-          error: "reportTitle et place sont requis",
+          error: "reportTitle, place et content sont requis",
         });
       }
 
@@ -49,13 +49,14 @@ router.post(
                 folder: "reports",
               });
               return { url: result.secure_url, public_id: result.public_id };
-            })
+            }),
           )
         : [];
 
       const report = await Report.create({
         reportTitle: reportTitle.trim(),
         place: place.trim(),
+        content: content.trim(),
         priority: priority || "secondaire",
         owner: req.user._id, // ✅ CORRECT
         assignedTo: assignedTo || null,
@@ -69,7 +70,7 @@ router.post(
       console.error("Erreur création report:", error);
       res.status(500).json({ success: false, error: "Erreur serveur" });
     }
-  }
+  },
 );
 
 // GET - Tous les reports accessibles (paginé)
@@ -144,7 +145,7 @@ router.get(
       console.error("Erreur récupération report:", error);
       res.status(500).json({ success: false, error: "Erreur serveur" });
     }
-  }
+  },
 );
 
 module.exports = router;
