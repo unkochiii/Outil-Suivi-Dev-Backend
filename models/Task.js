@@ -19,6 +19,11 @@ const taskSchema = new mongoose.Schema(
       required: [true, "La durée est requise"],
       trim: true,
     },
+    dueDate: {
+      type: Date,
+      default: null,
+      index: true,
+    },
     Progression: [
       {
         date: { type: Date, default: Date.now },

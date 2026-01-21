@@ -25,6 +25,7 @@ router.post("/admin/task", async (req, res) => {
       Done,
       owner,
       assignedTo,
+      dueDate,
       Site,
       Apk,
       Backend,
@@ -66,6 +67,7 @@ router.post("/admin/task", async (req, res) => {
       Description: Description.trim(),
       Problem: Problem || null,
       Done: Done || false,
+      dueDate: dueDate || null,
       owner,
       assignedTo: assignedTo || null,
       Site,
@@ -94,6 +96,7 @@ router.put("/admin/task/:id", validateObjectId, async (req, res) => {
       Done,
       owner,
       assignedTo,
+      dueDate,
       Site,
       Apk,
       Backend,
@@ -136,6 +139,7 @@ router.put("/admin/task/:id", validateObjectId, async (req, res) => {
     if (Duration) task.Duration = Duration.trim();
     if (Description) task.Description = Description.trim();
     if (Problem !== undefined) task.Problem = Problem;
+    if (dueDate !== undefined) task.dueDate = dueDate || null;
     if (Done !== undefined) task.Done = Done;
 
     // Mise à jour des versions avec timestamps
@@ -198,7 +202,7 @@ router.put(
       console.error("Erreur progression:", error);
       res.status(500).json({ success: false, error: "Erreur serveur" });
     }
-  }
+  },
 );
 
 // DELETE
