@@ -11,28 +11,28 @@ const MAX_LIMIT = 50;
 // Récupérer les ToDos assignés à l'utilisateur connecté
 router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
   try {
-    // Vérification de l'authentification
     if (!req.user?._id) {
       return res.status(401).json({ error: "Utilisateur non authentifié" });
     }
 
-    // Validation et parsing des paramètres
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(
-      MAX_LIMIT,
+      50,
       Math.max(1, parseInt(req.query.limit, 10) || 10),
     );
 
     const { status, priority } = req.query;
-    const filter = { assignedTo: req.user._id };
 
-    // Filtrage par statut (optionnel)
-    if (status && VALID_STATUSES.includes(status)) {
+    // ✅ S'assurer que c'est un ObjectId
+    const filter = {
+      assignedTo: new mongoose.Types.ObjectId(req.user._id),
+    };
+
+    if (status && ["pending", "resolved"].includes(status)) {
       filter.status = status;
     }
 
-    // Filtrage par priorité (optionnel)
-    if (priority && VALID_PRIORITIES.includes(priority)) {
+    if (priority && ["urgent", "important", "secondaire"].includes(priority)) {
       filter.priority = priority;
     }
 
@@ -58,9 +58,7 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur GET /my-toDo:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur serveur lors de la récupération des tâches" });
+    res.status(500).json({ error: "Erreur serveur" });
   }
 });
 
