@@ -6,19 +6,19 @@ const cors = require("cors");
 const compteRoutes = require("./routes/user/interactive/compte");
 const accountRoutes = require("./routes/admin/account/account");
 
-const officialsAdminRoutes = require("./routes/admin/official/official");
+const officialsAdminRoutes = require("./routes/admin/official/Official");
 const officialsRoutes = require("./routes/user/visual/officials");
 
-const pagesAdminRoutes = require("./routes/admin/page/page");
+const pagesAdminRoutes = require("./routes/admin/page/Page");
 const pagesRoutes = require("./routes/user/visual/pages");
 
 const rapportAdminRoutes = require("./routes/admin/rapport/rapport");
 const rapportRoutes = require("./routes/user/interactive/repports");
 
-const taskAdminRoutes = require("./routes/admin/task/task");
+const taskAdminRoutes = require("./routes/admin/task/Task");
 const taskRoutes = require("./routes/user/visual/tasks");
 
-const toDoAdminRoutes = require("./routes/admin/toDo/ToDo");
+const toDoAdminRoutes = require("./routes/admin/toDo/TODO");
 const toDoRoutes = require("./routes/user/interactive/toDo");
 
 const app = express();
