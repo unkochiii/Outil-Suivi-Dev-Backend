@@ -12,7 +12,7 @@ const validateObjectId = (req, res, next) => {
 };
 
 // GET - Tâches assignées
-router.get("/task/my/assigned", async (req, res) => {
+router.get("/task/my/assigned", isAuthenticated, async (req, res) => {
   try {
     const tasks = await Task.find({ assignedTo: req.user._id })
       .populate("owner", "projectName email")
@@ -27,7 +27,7 @@ router.get("/task/my/assigned", async (req, res) => {
 });
 
 // GET - Une tâche spécifique
-router.get("/task/:id", validateObjectId, async (req, res) => {
+router.get("/task/:id", validateObjectId, isAuthenticated, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id)
       .populate("owner", "projectName email")
