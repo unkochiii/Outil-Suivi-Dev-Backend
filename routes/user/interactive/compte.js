@@ -131,12 +131,42 @@ router.get("/me", isAuthenticated, async (req, res) => {
 // DÉCONNEXION
 // POST /logout
 // ═══════════════════════════════════════════════════════
-router.post("/logout", isAuthenticated, async (req, res) => {
+router.post("/logout", async (req, res) => {
   try {
-    // Supprimer le token de la base de données
-    await Account.findByIdAndUpdate(req.user._id, {
-      token: null,
-    });
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    // Si pas de token, considérer comme déjà déconnecté
+    if (!token) {
+      return res.json({
+        success: true,
+        message: "Déjà déconnecté",
+      });
+    }
+
+    // Essayer de décoder le token (même s'il est expiré)
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (jwtError) {
+      // Token invalide ou expiré - c'est OK, on déconnecte quand même
+      // Essayer de décoder sans vérifier l'expiration
+      try {
+        decoded = jwt.decode(token);
+      } catch {
+        // Token complètement invalide
+        return res.json({
+          success: true,
+          message: "Déconnexion réussie (token invalide)",
+        });
+      }
+    }
+
+    // Si on a un ID, supprimer le token en base
+    if (decoded?.id) {
+      await Account.findByIdAndUpdate(decoded.id, {
+        token: null,
+      });
+    }
 
     res.json({
       success: true,
@@ -144,7 +174,11 @@ router.post("/logout", isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur POST /logout:", error);
-    res.status(500).json({ success: false, error: "Erreur serveur interne" });
+    // Même en cas d'erreur serveur, on considère la déconnexion réussie côté client
+    res.json({
+      success: true,
+      message: "Déconnexion réussie (erreur serveur ignorée)",
+    });
   }
 });
 
