@@ -36,9 +36,8 @@ cloudinary.config({
 app.get("/", (req, res) => {
   res.json({ message: "Serveur Outil Suivi Dev" });
 });
-
-app.use(accountRoutes);
 app.use(compteRoutes);
+app.use(accountRoutes);
 
 app.use(officialsRoutes);
 app.use(officialsAdminRoutes);
