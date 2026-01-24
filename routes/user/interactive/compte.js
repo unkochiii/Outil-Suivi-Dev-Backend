@@ -9,49 +9,53 @@ const { isAuthenticated } = require("../../../middlewares/auth");
 // const rateLimit = require("express-rate-limit");
 // const loginLimiter = rateLimit({ windowMs: 15*60*1000, max: 5 });
 
-// ═══════════════════════════════════════════════════════
-// CONNEXION
-// POST /login
-// ═══════════════════════════════════════════════════════
 router.post("/login", async (req, res) => {
   try {
+    console.log("=== LOGIN ATTEMPT ===");
+    console.log("Body reçu:", req.body);
+
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
+      console.log("❌ Email ou password manquant");
       return res.status(400).json({
         success: false,
         error: "Email et mot de passe requis",
       });
     }
 
-    // Chercher le compte (exclure hash/salt/token par sécurité)
+    console.log("Email recherché:", email);
+
     const account = await Account.findOne({ email }).select(
       "+hash +salt +token",
     );
 
+    console.log("Compte trouvé:", account ? "OUI" : "NON");
+
     if (!account) {
+      console.log("❌ Compte non trouvé");
       return res.status(401).json({
         success: false,
         error: "Email ou mot de passe incorrect",
       });
     }
 
-    // Vérifier si le compte a un mot de passe défini
     if (!account.hash || !account.salt) {
+      console.log("❌ Hash ou salt manquant");
       return res.status(401).json({
         success: false,
         error: "Compte non activé ou mot de passe non défini",
       });
     }
 
-    // Vérifier le mot de passe
     const hash = crypto
       .pbkdf2Sync(password, account.salt, 1000, 64, "sha512")
       .toString("hex");
 
+    console.log("Hash match:", hash === account.hash);
+
     if (hash !== account.hash) {
-      // Petit délai pour prévenir les attaques par timing
+      console.log("❌ Mot de passe incorrect");
       await new Promise((resolve) => setTimeout(resolve, 100));
       return res.status(401).json({
         success: false,
@@ -59,7 +63,6 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Générer le token JWT
     const token = jwt.sign(
       {
         id: account._id,
@@ -70,9 +73,10 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    // Sauvegarder le token dans le compte (optionnel mais utile pour déconnexion)
     account.token = token;
     await account.save();
+
+    console.log("✅ Login réussi pour:", email);
 
     res.json({
       success: true,
@@ -87,7 +91,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Erreur POST /login:", error);
+    console.error("❌ Erreur POST /login:", error);
     res.status(500).json({ success: false, error: "Erreur serveur interne" });
   }
 });
