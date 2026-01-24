@@ -37,23 +37,23 @@ app.get("/", (req, res) => {
   res.json({ message: "Serveur Outil Suivi Dev" });
 });
 
-app.use(compteRoutes);
 app.use(accountRoutes);
+app.use(compteRoutes);
 
-app.use(officialsAdminRoutes);
 app.use(officialsRoutes);
+app.use(officialsAdminRoutes);
 
-app.use(pagesAdminRoutes);
 app.use(pagesRoutes);
+app.use(pagesAdminRoutes);
 
-app.use(rapportAdminRoutes);
 app.use(rapportRoutes);
+app.use(rapportAdminRoutes);
 
-app.use(taskAdminRoutes);
 app.use(taskRoutes);
+app.use(taskAdminRoutes);
 
-app.use(toDoAdminRoutes);
 app.use(toDoRoutes);
+app.use(toDoAdminRoutes);
 
 app.all(/.*/, function (req, res) {
   res.status(404).json({ message: "Page not found" });

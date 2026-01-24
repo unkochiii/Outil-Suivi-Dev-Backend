@@ -11,39 +11,15 @@ const validateObjectId = (req, res, next) => {
   next();
 };
 
-// GET - Toutes les tâches accessibles
-router.get("/task", async (req, res) => {
+// GET - Tâches assignées
+router.get("/task/my/assigned", async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+    const tasks = await Task.find({ assignedTo: req.user._id })
+      .populate("owner", "projectName email")
+      .populate("assignedTo", "projectName email")
+      .sort({ createdAt: -1 });
 
-    const filter =
-      req.user.role === "admin"
-        ? {}
-        : { $or: [{ owner: req.user._id }, { assignedTo: req.user._id }] };
-
-    if (req.query.taskName) {
-      filter.taskName = { $regex: req.query.taskName.trim(), $options: "i" };
-    }
-    if (req.query.Done !== undefined) {
-      filter.Done = req.query.Done === "true";
-    }
-
-    const [total, tasks] = await Promise.all([
-      Task.countDocuments(filter),
-      Task.find(filter)
-        .populate("owner", "projectName email") // ✅ CORRECT
-        .populate("assignedTo", "projectName email")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-    ]);
-
-    res.json({
-      success: true,
-      data: tasks,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-    });
+    res.json({ success: true, data: tasks, count: tasks.length });
   } catch (error) {
     console.error("Erreur:", error);
     res.status(500).json({ success: false, error: "Erreur serveur" });
@@ -73,21 +49,6 @@ router.get("/task/:id", validateObjectId, async (req, res) => {
     }
 
     res.json({ success: true, data: task });
-  } catch (error) {
-    console.error("Erreur:", error);
-    res.status(500).json({ success: false, error: "Erreur serveur" });
-  }
-});
-
-// GET - Tâches assignées
-router.get("/task/my/assigned", async (req, res) => {
-  try {
-    const tasks = await Task.find({ assignedTo: req.user._id })
-      .populate("owner", "projectName email")
-      .populate("assignedTo", "projectName email")
-      .sort({ createdAt: -1 });
-
-    res.json({ success: true, data: tasks, count: tasks.length });
   } catch (error) {
     console.error("Erreur:", error);
     res.status(500).json({ success: false, error: "Erreur serveur" });
