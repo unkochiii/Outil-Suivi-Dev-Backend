@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const fs = require("fs").promises;
 const Page = require("../../../models/Page");
 const Account = require("../../../models/Account");
 const { isAuthenticated, isAdmin } = require("../../../middlewares/auth");
@@ -17,105 +16,130 @@ const validateObjectId = (req, res, next) => {
 
 router.use(isAuthenticated, isAdmin);
 
-const generateSuccessResponse = (data, message = "Succès") => ({
-  success: true,
-  message,
-  data,
-});
+// ✅ Upload vers Cloudinary depuis un BUFFER
+const uploadToCloudinary = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.buffer) {
+      return reject(new Error("Fichier invalide"));
+    }
 
-// Fonction utilitaire pour supprimer les fichiers temporaires
-const cleanupTempFiles = async (files) => {
-  if (!files?.length) return;
-  await Promise.all(
-    files.map(async (file) => {
-      try {
-        if (file.path) await fs.unlink(file.path);
-      } catch (err) {
-        console.error("Erreur suppression fichier temp:", err);
-      }
-    }),
-  );
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "pages",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) {
+          console.error("❌ Cloudinary error:", error);
+          reject(error);
+        } else {
+          resolve({
+            url: result.secure_url,
+            public_id: result.public_id,
+          });
+        }
+      },
+    );
+
+    uploadStream.end(file.buffer);
+  });
 };
 
-// Fonction utilitaire pour supprimer des images Cloudinary
-const deleteCloudinaryImages = async (images) => {
-  if (!images?.length) return;
-  await Promise.all(
-    images.map(async (img) => {
-      try {
-        const publicId = typeof img === "string" ? img : img.public_id;
-        if (publicId) await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.error("Erreur suppression Cloudinary:", err);
-      }
-    }),
-  );
-};
-
-// Fonction pour uploader les images vers Cloudinary
-const uploadToCloudinary = async (files) => {
-  const uploadedImages = [];
+// ✅ Upload multiple
+const uploadMultiple = async (files) => {
+  const uploaded = [];
 
   for (const file of files) {
     try {
-      const result = await cloudinary.uploader.upload(file.path, {
-        folder: "pages",
-        resource_type: "image",
-      });
-      uploadedImages.push({
-        url: result.secure_url,
-        public_id: result.public_id,
-      });
+      console.log(`📤 Upload: ${file.originalname}`);
+      const result = await uploadToCloudinary(file);
+      uploaded.push(result);
+      console.log(`✅ OK: ${result.public_id}`);
     } catch (err) {
-      // En cas d'erreur, supprimer les images déjà uploadées
-      await deleteCloudinaryImages(uploadedImages);
-      throw new Error(`Erreur upload image: ${err.message}`);
+      // Nettoyer en cas d'erreur
+      await deleteImages(uploaded);
+      throw err;
     }
   }
 
-  return uploadedImages;
+  return uploaded;
 };
 
-// POST
-router.post("/admin/page", upload.array("images", 5), async (req, res) => {
+// ✅ Supprimer images Cloudinary
+const deleteImages = async (images) => {
+  for (const img of images) {
+    try {
+      const publicId = typeof img === "string" ? img : img.public_id;
+      if (publicId) {
+        await cloudinary.uploader.destroy(publicId);
+        console.log(`🗑️ Supprimé: ${publicId}`);
+      }
+    } catch (err) {
+      console.error("Erreur suppression:", err.message);
+    }
+  }
+};
+
+// ✅ Middleware erreur Multer
+const handleUpload = (req, res, next) => {
+  upload.array("images", 5)(req, res, (err) => {
+    if (err) {
+      console.error("❌ Multer error:", err.message);
+
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "Fichier trop gros (max 5MB)",
+        });
+      }
+      if (err.code === "LIMIT_FILE_COUNT") {
+        return res.status(400).json({
+          success: false,
+          error: "Maximum 5 fichiers",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        error: err.message,
+      });
+    }
+    next();
+  });
+};
+
+// POST - Créer
+router.post("/admin/page", handleUpload, async (req, res) => {
   let uploadedImages = [];
 
   try {
+    console.log("📡 POST /admin/page");
+    console.log("Body:", req.body);
+    console.log("Files:", req.files?.length || 0);
+
     const { pageName, Description, owner, assignedTo } = req.body;
 
-    // Validations
+    // Validation
     if (!pageName?.trim() || !Description?.trim() || !owner) {
-      await cleanupTempFiles(req.files);
       return res.status(400).json({
         success: false,
         error: "pageName, Description et owner sont requis",
       });
     }
 
-    // ✅ Vérifier le nombre AVANT l'upload
-    if (req.files?.length > 5) {
-      await cleanupTempFiles(req.files);
-      return res.status(400).json({
-        success: false,
-        error: "Maximum 5 images autorisées",
-      });
-    }
-
-    // Vérifier existence du owner
+    // Vérifier owner
     const ownerExists = await Account.findById(owner);
     if (!ownerExists) {
-      await cleanupTempFiles(req.files);
       return res.status(404).json({
         success: false,
         error: "Owner non trouvé",
       });
     }
 
-    // Vérifier existence de assignedTo
+    // Vérifier assignedTo
     if (assignedTo) {
       const assigneeExists = await Account.findById(assignedTo);
       if (!assigneeExists) {
-        await cleanupTempFiles(req.files);
         return res.status(404).json({
           success: false,
           error: "AssignedTo non trouvé",
@@ -123,12 +147,12 @@ router.post("/admin/page", upload.array("images", 5), async (req, res) => {
       }
     }
 
-    // Upload des images vers Cloudinary
-    if (req.files?.length) {
-      uploadedImages = await uploadToCloudinary(req.files);
+    // Upload images
+    if (req.files?.length > 0) {
+      uploadedImages = await uploadMultiple(req.files);
     }
 
-    // Créer la page
+    // Créer page
     const newPage = new Page({
       pageName: pageName.trim(),
       Description: Description.trim(),
@@ -138,17 +162,16 @@ router.post("/admin/page", upload.array("images", 5), async (req, res) => {
     });
 
     await newPage.save();
+    console.log("✅ Page créée:", newPage._id);
 
-    // Nettoyer les fichiers temporaires
-    await cleanupTempFiles(req.files);
-
-    res.status(201).json(generateSuccessResponse(newPage, "Page créée"));
+    res.status(201).json({
+      success: true,
+      message: "Page créée",
+      data: newPage,
+    });
   } catch (error) {
-    console.error("Erreur création:", error);
-
-    // ✅ Nettoyer en cas d'erreur
-    await cleanupTempFiles(req.files);
-    await deleteCloudinaryImages(uploadedImages);
+    console.error("❌ Erreur:", error);
+    await deleteImages(uploadedImages);
 
     res.status(500).json({
       success: false,
@@ -157,13 +180,13 @@ router.post("/admin/page", upload.array("images", 5), async (req, res) => {
   }
 });
 
-// PUT
+// PUT - Modifier
 router.put(
   "/admin/page/:id",
   validateObjectId,
-  upload.array("images", 5),
+  handleUpload,
   async (req, res) => {
-    let newUploadedImages = [];
+    let newImages = [];
 
     try {
       const { pageName, Description, owner, assignedTo, imagesToDelete } =
@@ -171,95 +194,70 @@ router.put(
 
       const page = await Page.findById(req.params.id);
       if (!page) {
-        await cleanupTempFiles(req.files);
         return res.status(404).json({
           success: false,
           error: "Page non trouvée",
         });
       }
 
-      // Parser imagesToDelete si c'est une string JSON
-      let imagesToDeleteArray = [];
+      // Parser imagesToDelete
+      let toDelete = [];
       if (imagesToDelete) {
-        imagesToDeleteArray = Array.isArray(imagesToDelete)
+        toDelete = Array.isArray(imagesToDelete)
           ? imagesToDelete
           : JSON.parse(imagesToDelete);
       }
 
-      // ✅ Vérifier que les images à supprimer appartiennent bien à la page
-      const pageImageIds = page.images.map((img) => img.public_id);
-      const invalidDeleteIds = imagesToDeleteArray.filter(
-        (id) => !pageImageIds.includes(id),
-      );
+      // Calculer limite
+      const remaining = page.images.length - toDelete.length;
+      const adding = req.files?.length || 0;
 
-      if (invalidDeleteIds.length > 0) {
-        await cleanupTempFiles(req.files);
+      if (remaining + adding > 5) {
         return res.status(400).json({
           success: false,
-          error:
-            "Certaines images à supprimer n'appartiennent pas à cette page",
+          error: `Max 5 images. Restantes: ${remaining}, ajout possible: ${5 - remaining}`,
         });
       }
 
-      // ✅ Calculer le nombre final d'images CORRECTEMENT
-      const remainingImagesCount =
-        page.images.length - imagesToDeleteArray.length;
-      const newImagesCount = req.files?.length || 0;
-      const totalImages = remainingImagesCount + newImagesCount;
-
-      if (totalImages > 5) {
-        await cleanupTempFiles(req.files);
-        return res.status(400).json({
-          success: false,
-          error: `Limite de 5 images dépassée. Actuellement: ${remainingImagesCount} images restantes. Vous pouvez ajouter maximum ${5 - remainingImagesCount} nouvelles images`,
-        });
+      // Upload nouvelles images
+      if (req.files?.length > 0) {
+        newImages = await uploadMultiple(req.files);
       }
 
-      // Upload des nouvelles images AVANT de supprimer les anciennes
-      if (req.files?.length) {
-        newUploadedImages = await uploadToCloudinary(req.files);
-      }
-
-      // Supprimer les anciennes images de Cloudinary
-      if (imagesToDeleteArray.length > 0) {
-        await deleteCloudinaryImages(imagesToDeleteArray);
+      // Supprimer anciennes
+      if (toDelete.length > 0) {
+        await deleteImages(toDelete);
         page.images = page.images.filter(
-          (img) => !imagesToDeleteArray.includes(img.public_id),
+          (img) => !toDelete.includes(img.public_id),
         );
       }
 
-      // Ajouter les nouvelles images
-      if (newUploadedImages.length > 0) {
-        page.images.push(...newUploadedImages);
-      }
+      // Ajouter nouvelles
+      page.images.push(...newImages);
 
-      // Mettre à jour les autres champs
+      // Mettre à jour champs
       if (pageName?.trim()) page.pageName = pageName.trim();
       if (Description?.trim()) page.Description = Description.trim();
 
       if (owner && owner !== page.owner.toString()) {
         const ownerExists = await Account.findById(owner);
         if (!ownerExists) {
-          await cleanupTempFiles(req.files);
-          return res.status(404).json({
-            success: false,
-            error: "Owner non trouvé",
-          });
+          return res
+            .status(404)
+            .json({ success: false, error: "Owner non trouvé" });
         }
         page.owner = owner;
       }
 
       if (assignedTo !== undefined) {
-        if (assignedTo === null || assignedTo === "null" || assignedTo === "") {
+        if (!assignedTo || assignedTo === "null") {
           page.assignedTo = null;
-        } else if (assignedTo !== page.assignedTo?.toString()) {
-          const assigneeExists = await Account.findById(assignedTo);
-          if (!assigneeExists) {
-            await cleanupTempFiles(req.files);
-            return res.status(404).json({
-              success: false,
-              error: "AssignedTo non trouvé",
-            });
+        } else {
+          const exists = await Account.findById(assignedTo);
+          if (!exists) {
+            return res
+              .status(404)
+              .json({ success: false, error: "AssignedTo non trouvé" });
           }
           page.assignedTo = assignedTo;
         }
@@ -267,16 +265,14 @@ router.put(
 
       await page.save();
 
-      // Nettoyer les fichiers temporaires
-      await cleanupTempFiles(req.files);
-
-      res.json(generateSuccessResponse(page, "Page mise à jour"));
+      res.json({
+        success: true,
+        message: "Page mise à jour",
+        data: page,
+      });
     } catch (error) {
-      console.error("Erreur mise à jour:", error);
-
-      // ✅ Nettoyer en cas d'erreur
-      await cleanupTempFiles(req.files);
-      await deleteCloudinaryImages(newUploadedImages);
+      console.error("❌ Erreur:", error);
+      await deleteImages(newImages);
 
       res.status(500).json({
         success: false,
@@ -297,17 +293,13 @@ router.delete("/admin/page/:id", validateObjectId, async (req, res) => {
       });
     }
 
-    // Supprimer images Cloudinary (avec gestion d'erreur)
-    await deleteCloudinaryImages(page.images);
-
+    await deleteImages(page.images);
     await Page.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Page supprimée avec succès" });
+
+    res.json({ success: true, message: "Page supprimée" });
   } catch (error) {
-    console.error("Erreur suppression:", error);
-    res.status(500).json({
-      success: false,
-      error: "Erreur serveur",
-    });
+    console.error("❌ Erreur:", error);
+    res.status(500).json({ success: false, error: "Erreur serveur" });
   }
 });
 
