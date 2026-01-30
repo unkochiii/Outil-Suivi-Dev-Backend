@@ -134,9 +134,8 @@ router.get(
       const isOwner = report.owner._id.toString() === req.user._id.toString();
       const isAssigned =
         report.assignedTo?._id?.toString() === req.user._id.toString();
-      const isAdmin = req.user.role === "admin";
 
-      if (!isOwner && !isAssigned && !isAdmin) {
+      if (!isOwner && !isAssigned) {
         return res.status(403).json({ success: false, error: "Accès refusé" });
       }
 
