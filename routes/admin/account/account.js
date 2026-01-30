@@ -21,7 +21,7 @@ router.use(isAuthenticated, isAdmin);
 // Générer un mot de passe sécurisé (32 caractères alphanumériques)
 // ═══════════════════════════════════════════════════════
 const generateSecurePassword = () => {
-  return crypto.randomBytes(16).toString("base64url");
+  return crypto.randomBytes(4).toString("base64url");
 };
 
 // ═══════════════════════════════════════════════════════
