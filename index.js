@@ -32,7 +32,10 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-
+app.use((req, res, next) => {
+  console.log(`📨 ${req.method} ${req.path}`);
+  next();
+});
 app.get("/", (req, res) => {
   res.json({ message: "Serveur Outil Suivi Dev" });
 });
