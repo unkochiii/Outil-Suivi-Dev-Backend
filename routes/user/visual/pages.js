@@ -13,7 +13,7 @@ const validateObjectId = (req, res, next) => {
 };
 
 // GET - Toutes les pages accessibles
-router.get("/page", async (req, res) => {
+router.get("/page", isAuthenticated, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
@@ -51,7 +51,7 @@ router.get("/page", async (req, res) => {
 });
 
 // GET - Une page spécifique
-router.get("/page/:id", validateObjectId, async (req, res) => {
+router.get("/page/:id", validateObjectId, isAuthenticated, async (req, res) => {
   try {
     const page = await Page.findById(req.params.id)
       .populate("owner", "projectName email")
@@ -79,7 +79,7 @@ router.get("/page/:id", validateObjectId, async (req, res) => {
 });
 
 // GET - Pages assignées à l'utilisateur
-router.get("/page/my/assigned", async (req, res) => {
+router.get("/page/my/assigned", isAuthenticated, async (req, res) => {
   try {
     const pages = await Page.find({ assignedTo: req.user._id })
       .populate("owner", "projectName email")

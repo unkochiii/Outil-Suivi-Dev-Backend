@@ -42,8 +42,8 @@ router.get("/task/:id", validateObjectId, isAuthenticated, async (req, res) => {
     const isOwner = task.owner._id.toString() === req.user._id.toString();
     const isAssigned =
       task.assignedTo?._id?.toString() === req.user._id.toString();
-
-    if (!isOwner && !isAssigned) {
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAssigned && !isAdmin) {
       return res.status(403).json({ success: false, error: "Accès refusé" });
     }
 
