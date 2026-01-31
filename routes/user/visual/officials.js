@@ -3,6 +3,8 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const Official = require("../../../models/Official");
 const { isAuthenticated } = require("../../../middlewares/auth");
+const path = require("path");
+const fs = require("fs");
 
 // Validation d'ID
 const validateObjectId = (req, res, next) => {
@@ -89,6 +91,55 @@ router.get(
     } catch (error) {
       console.error("Erreur récupération document:", error);
       res.status(500).json({ success: false, error: "Erreur serveur" });
+    }
+  },
+);
+
+// GET - Télécharger un PDF
+router.get(
+  "/officials/:id/pdf",
+  validateObjectId,
+  isAuthenticated,
+  async (req, res) => {
+    try {
+      const official = await Official.findById(req.params.id)
+        .populate("owner", "projectName email")
+        .populate("assignedTo", "projectName email");
+
+      if (!official) {
+        return res.status(404).json({ error: "Document non trouvé" });
+      }
+
+      // Vérification d'accès
+      const isOwner = official.owner._id.toString() === req.user._id.toString();
+      const isAssigned =
+        official.assignedTo?._id?.toString() === req.user._id.toString();
+      const isAdmin = req.user.role === "admin";
+
+      if (!isOwner && !isAssigned && !isAdmin) {
+        return res.status(403).json({ error: "Accès refusé" });
+      }
+
+      // Vérifier si le fichier existe
+      if (!official.pdf?.url) {
+        return res.status(404).json({ error: "Fichier PDF non trouvé" });
+      }
+
+      // Enlever le préfixe file:// si présent
+      const filePath = official.pdf.url.replace("file://", "");
+
+      // Vérifier que le fichier existe réellement
+      if (!fs.existsSync(filePath)) {
+        return res
+          .status(404)
+          .json({ error: "Le fichier n'existe pas sur le serveur" });
+      }
+
+      // Envoyer le fichier avec le bon nom
+      res.download(filePath, official.documentName || "document.pdf");
+    } catch (error) {
+      console.error("Erreur téléchargement PDF:", error);
+      res.status(500).json({ error: "Erreur serveur lors du téléchargement" });
     }
   },
 );
