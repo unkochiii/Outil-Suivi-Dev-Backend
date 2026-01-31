@@ -108,6 +108,130 @@ const handleUpload = (req, res, next) => {
   });
 };
 
+// ✅ GET - Récupérer toutes les pages (Admin)
+router.get("/admin/pages", async (req, res) => {
+  try {
+    console.log("📡 GET /admin/pages");
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Filtres optionnels
+    const filter = {};
+
+    // Filtrer par nom de page (recherche partielle)
+    if (req.query.search) {
+      filter.pageName = { $regex: req.query.search, $options: "i" };
+    }
+
+    // Filtrer par owner
+    if (req.query.owner) {
+      filter.owner = req.query.owner;
+    }
+
+    // Filtrer par assignedTo
+    if (req.query.assignedTo) {
+      filter.assignedTo =
+        req.query.assignedTo === "null" ? null : req.query.assignedTo;
+    }
+
+    // Filtrer par présence d'images
+    if (req.query.hasImages === "true") {
+      filter.images = { $not: { $size: 0 } };
+    } else if (req.query.hasImages === "false") {
+      filter.images = { $size: 0 };
+    }
+
+    // Tri
+    const sortField = req.query.sortBy || "createdAt";
+    const sortOrder = req.query.order === "asc" ? 1 : -1;
+    const sort = { [sortField]: sortOrder };
+
+    // Exécution requête avec pagination
+    const [pages, total] = await Promise.all([
+      Page.find(filter)
+        .populate("owner", "firstName lastName email")
+        .populate("assignedTo", "firstName lastName email")
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Page.countDocuments(filter),
+    ]);
+
+    // Stats supplémentaires
+    const stats = await Page.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalPages: { $sum: 1 },
+          pagesWithImages: {
+            $sum: { $cond: [{ $gt: [{ $size: "$images" }, 0] }, 1, 0] },
+          },
+          totalImages: { $sum: { $size: "$images" } },
+        },
+      },
+    ]);
+
+    console.log(`✅ ${pages.length} pages trouvées (total: ${total})`);
+
+    res.json({
+      success: true,
+      data: pages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
+      stats: stats[0] || {
+        totalPages: total,
+        pagesWithImages: 0,
+        totalImages: 0,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Erreur:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Erreur serveur",
+    });
+  }
+});
+
+// ✅ GET - Récupérer une page par ID (Admin)
+router.get("/admin/page/:id", validateObjectId, async (req, res) => {
+  try {
+    console.log("📡 GET /admin/page/" + req.params.id);
+
+    const page = await Page.findById(req.params.id)
+      .populate("owner", "firstName lastName email role")
+      .populate("assignedTo", "firstName lastName email role");
+
+    if (!page) {
+      return res.status(404).json({
+        success: false,
+        error: "Page non trouvée",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: page,
+    });
+  } catch (error) {
+    console.error("❌ Erreur:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Erreur serveur",
+    });
+  }
+});
+
 // POST - Créer
 router.post("/admin/page", handleUpload, async (req, res) => {
   let uploadedImages = [];
