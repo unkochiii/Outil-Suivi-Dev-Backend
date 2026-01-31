@@ -95,18 +95,21 @@ router.get(
   },
 );
 
-// GET - Télécharger un PDF
+// 🔽 **AJOUTER CETTE ROUTE EN BAS DU FICHIER**
 router.get(
   "/officials/:id/pdf",
   validateObjectId,
   isAuthenticated,
   async (req, res) => {
     try {
+      console.log("📥 Demande de téléchargement PDF pour ID:", req.params.id);
+
       const official = await Official.findById(req.params.id)
         .populate("owner", "projectName email")
         .populate("assignedTo", "projectName email");
 
       if (!official) {
+        console.log("❌ Document non trouvé");
         return res.status(404).json({ error: "Document non trouvé" });
       }
 
@@ -117,29 +120,53 @@ router.get(
       const isAdmin = req.user.role === "admin";
 
       if (!isOwner && !isAssigned && !isAdmin) {
+        console.log("🔒 Accès refusé pour l'utilisateur:", req.user._id);
         return res.status(403).json({ error: "Accès refusé" });
       }
 
       // Vérifier si le fichier existe
       if (!official.pdf?.url) {
+        console.log("❌ URL PDF manquante dans le document");
         return res.status(404).json({ error: "Fichier PDF non trouvé" });
       }
 
       // Enlever le préfixe file:// si présent
       const filePath = official.pdf.url.replace("file://", "");
+      console.log("📁 Chemin du fichier:", filePath);
 
       // Vérifier que le fichier existe réellement
       if (!fs.existsSync(filePath)) {
+        console.log("❌ Fichier non trouvé sur le disque:", filePath);
         return res
           .status(404)
           .json({ error: "Le fichier n'existe pas sur le serveur" });
       }
 
-      // Envoyer le fichier avec le bon nom
-      res.download(filePath, official.documentName || "document.pdf");
+      // Envoyer le fichier
+      const filename = official.documentName || "document.pdf";
+      console.log("✅ Envoi du fichier:", filename);
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.sendFile(filePath, (err) => {
+        if (err) {
+          console.error("💥 Erreur lors de l'envoi du fichier:", err);
+          if (!res.headersSent) {
+            res
+              .status(500)
+              .json({ error: "Erreur lors de la lecture du fichier" });
+          }
+        }
+      });
     } catch (error) {
-      console.error("Erreur téléchargement PDF:", error);
-      res.status(500).json({ error: "Erreur serveur lors du téléchargement" });
+      console.error("💥 Erreur téléchargement PDF:", error);
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: "Erreur serveur lors du téléchargement" });
+      }
     }
   },
 );
