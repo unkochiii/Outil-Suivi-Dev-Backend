@@ -209,8 +209,8 @@ router.get("/admin/page/:id", validateObjectId, async (req, res) => {
     console.log("📡 GET /admin/page/" + req.params.id);
 
     const page = await Page.findById(req.params.id)
-      .populate("owner", "firstName lastName email role")
-      .populate("assignedTo", "firstName lastName email role");
+      .populate("owner", "projectName email role")
+      .populate("assignedTo", "projectName email role");
 
     if (!page) {
       return res.status(404).json({
