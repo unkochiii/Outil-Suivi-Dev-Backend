@@ -37,8 +37,8 @@ const pageSchema = new mongoose.Schema(
       ],
       default: [],
       validate: {
-        validator: (v) => v.length <= 5,
-        message: "Maximum 5 images autorisées",
+        validator: (v) => v.length <= 10,
+        message: "Maximum 10 images autorisées",
       },
     },
     createdAt: {
@@ -50,7 +50,7 @@ const pageSchema = new mongoose.Schema(
   },
   {
     toJSON: { transform: (doc, ret) => ret },
-  }
+  },
 );
 
 pageSchema.index({ owner: 1, assignedTo: 1 });

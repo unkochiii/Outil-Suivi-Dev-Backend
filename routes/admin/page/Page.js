@@ -82,7 +82,7 @@ const deleteImages = async (images) => {
 
 // ✅ Middleware erreur Multer
 const handleUpload = (req, res, next) => {
-  upload.array("images", 5)(req, res, (err) => {
+  upload.array("images", 10)(req, res, (err) => {
     if (err) {
       console.error("❌ Multer error:", err.message);
 
@@ -95,7 +95,7 @@ const handleUpload = (req, res, next) => {
       if (err.code === "LIMIT_FILE_COUNT") {
         return res.status(400).json({
           success: false,
-          error: "Maximum 5 fichiers",
+          error: "Maximum 10 fichiers",
         });
       }
 
