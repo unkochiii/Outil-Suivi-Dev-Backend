@@ -13,6 +13,23 @@ const validateObjectId = (req, res, next) => {
 };
 
 router.use(isAuthenticated, isAdmin);
+// GET all tasks
+router.get("/admin/task", async (req, res) => {
+  try {
+    const tasks = await Task.find()
+      .populate("owner", "projectName email")
+      .populate("assignedTo", "projectName email")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: tasks,
+    });
+  } catch (error) {
+    console.error("Erreur récupération tâches:", error);
+    res.status(500).json({ success: false, error: "Erreur serveur" });
+  }
+});
 
 // POST
 router.post("/admin/task", async (req, res) => {
