@@ -14,7 +14,7 @@ const validateObjectId = (req, res, next) => {
 
 router.use(isAuthenticated, isAdmin);
 // GET all tasks
-router.get("/admin/task", async (req, res) => {
+router.get("/admin/tasks", async (req, res) => {
   try {
     const tasks = await Task.find()
       .populate("owner", "projectName email")
