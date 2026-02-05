@@ -102,7 +102,6 @@ router.post("/admin/task", async (req, res) => {
   }
 });
 
-// PUT
 router.put("/admin/task/:id", validateObjectId, async (req, res) => {
   try {
     const {
@@ -117,6 +116,7 @@ router.put("/admin/task/:id", validateObjectId, async (req, res) => {
       Site,
       Apk,
       Backend,
+      Progression, // ✅ AJOUT : Extraction de Progression
     } = req.body;
 
     const task = await Task.findById(req.params.id);
@@ -159,13 +159,18 @@ router.put("/admin/task/:id", validateObjectId, async (req, res) => {
     if (dueDate !== undefined) task.dueDate = dueDate || null;
     if (Done !== undefined) task.Done = Done;
 
+    // ✅ AJOUT : Mise à jour de la progression
+    if (Progression !== undefined && Array.isArray(Progression)) {
+      task.Progression = Progression;
+    }
+
     // Mise à jour des versions avec timestamps
     const updateVersion = (current, updated) => {
       if (!updated) return;
       Object.keys(updated).forEach((key) => {
         if (updated[key] !== undefined) {
           current[key] = updated[key];
-          current[`${key === "url" ? "updatedAt" : "updatedAt"}`] = new Date(); // Simplifié
+          current.updatedAt = new Date(); // ✅ Simplifié
         }
       });
     };
@@ -185,42 +190,6 @@ router.put("/admin/task/:id", validateObjectId, async (req, res) => {
     res.status(500).json({ success: false, error: "Erreur serveur" });
   }
 });
-
-// PUT progression
-router.put(
-  "/admin/task/:id/progression",
-  validateObjectId,
-  async (req, res) => {
-    try {
-      const { percentage } = req.body;
-      if (percentage === undefined || percentage < 0 || percentage > 100) {
-        return res.status(400).json({
-          success: false,
-          error: "Percentage requis (0-100)",
-        });
-      }
-
-      const task = await Task.findById(req.params.id);
-      if (!task) {
-        return res
-          .status(404)
-          .json({ success: false, error: "Tâche non trouvée" });
-      }
-
-      task.Progression.push({ percentage });
-      await task.save();
-
-      res.json({
-        success: true,
-        message: "Progression mise à jour",
-        data: task,
-      });
-    } catch (error) {
-      console.error("Erreur progression:", error);
-      res.status(500).json({ success: false, error: "Erreur serveur" });
-    }
-  },
-);
 
 // DELETE
 router.delete("/admin/task/:id", validateObjectId, async (req, res) => {
