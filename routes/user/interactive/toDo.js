@@ -63,6 +63,22 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
   }
 });
 
+router.get("/ToDo/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const todo = await ToDo.findById(req.params.id)
+      .populate("owner", "name email")
+      .populate("assignedTo", "name email");
+
+    if (!todo) {
+      return res.status(404).json({ error: "ToDo non trouvé" });
+    }
+
+    res.status(200).json({ success: true, data: todo });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Marquer un ToDo comme résolu
 router.patch("/ToDo/:id/validate", isAuthenticated, async (req, res) => {
   try {

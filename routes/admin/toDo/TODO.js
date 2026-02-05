@@ -38,23 +38,6 @@ router.get("/admin/ToDo", isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
-//  Un ToDo par ID (Admin)
-router.get("/admin/ToDo/:id", isAuthenticated, isAdmin, async (req, res) => {
-  try {
-    const todo = await ToDo.findById(req.params.id)
-      .populate("owner", "name email")
-      .populate("assignedTo", "name email");
-
-    if (!todo) {
-      return res.status(404).json({ error: "ToDo non trouvé" });
-    }
-
-    res.status(200).json({ success: true, data: todo });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 //  Créer un ToDo (Admin)
 router.post("/admin/ToDo/", isAuthenticated, isAdmin, async (req, res) => {
   try {
