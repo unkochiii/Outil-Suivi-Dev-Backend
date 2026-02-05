@@ -63,7 +63,7 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
   }
 });
 
-router.get("/ToDo/:id", isAuthenticated, isAdmin, async (req, res) => {
+router.get("/ToDo/:id", isAuthenticated, async (req, res) => {
   try {
     const todo = await ToDo.findById(req.params.id)
       .populate("owner", "name email")
