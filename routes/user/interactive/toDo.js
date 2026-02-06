@@ -8,21 +8,6 @@ const { isAuthenticated } = require("../../../middlewares/auth");
 const VALID_STATUSES = ["pending", "resolved"];
 const VALID_PRIORITIES = ["urgent", "important", "secondaire"];
 const MAX_LIMIT = 50;
-router.get("/ToDo/:id", isAuthenticated, async (req, res) => {
-  try {
-    const todo = await ToDo.findById(req.params.id)
-      .populate("owner", "projectName email")
-      .populate("assignedTo", "projectName email");
-
-    if (!todo) {
-      return res.status(404).json({ error: "ToDo non trouvé" });
-    }
-
-    res.status(200).json({ success: true, data: todo });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Récupérer les ToDos assignés à l'utilisateur connecté
 router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
@@ -56,7 +41,7 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
 
     const [todos, total] = await Promise.all([
       ToDo.find(filter)
-        .populate("owner", "name email")
+        .populate("owner", "projectName email")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -75,6 +60,21 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error("Erreur GET /my-toDo:", error);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+router.get("/ToDo/:id", isAuthenticated, async (req, res) => {
+  try {
+    const todo = await ToDo.findById(req.params.id)
+      .populate("owner", "projectName email")
+      .populate("assignedTo", "projectName email");
+
+    if (!todo) {
+      return res.status(404).json({ error: "ToDo non trouvé" });
+    }
+
+    res.status(200).json({ success: true, data: todo });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -110,8 +110,8 @@ router.patch("/ToDo/:id/validate", isAuthenticated, async (req, res) => {
     await todo.save();
 
     await todo.populate([
-      { path: "owner", select: "name email" },
-      { path: "assignedTo", select: "name email" },
+      { path: "owner", select: "projectName email" },
+      { path: "assignedTo", select: "projectName email" },
     ]);
 
     res.status(200).json({

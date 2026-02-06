@@ -16,8 +16,8 @@ router.get("/admin/ToDo", isAuthenticated, isAdmin, async (req, res) => {
 
     const [todos, total] = await Promise.all([
       ToDo.find(filter)
-        .populate("owner", "name email")
-        .populate("assignedTo", "name email")
+        .populate("owner", "projectName email")
+        .populate("assignedTo", "projectName email")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -53,8 +53,8 @@ router.post("/admin/ToDo/", isAuthenticated, isAdmin, async (req, res) => {
     });
 
     await todo.populate([
-      { path: "owner", select: "name email" },
-      { path: "assignedTo", select: "name email" },
+      { path: "owner", select: "projectName email" },
+      { path: "assignedTo", select: "projectName email" },
     ]);
 
     res.status(201).json({
@@ -87,8 +87,8 @@ router.put("/admin/ToDo/:id", isAuthenticated, isAdmin, async (req, res) => {
       },
       { new: true, runValidators: true },
     ).populate([
-      { path: "owner", select: "name email" },
-      { path: "assignedTo", select: "name email" },
+      { path: "owner", select: "projectName email" },
+      { path: "assignedTo", select: "projectName email" },
     ]);
 
     if (!todo) {
