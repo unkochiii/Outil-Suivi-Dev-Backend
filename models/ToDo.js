@@ -18,7 +18,7 @@ const ToDoSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Account",
-      default: "6967cf8cd23c48acdf06475d",
+      default: null,
       index: true,
     },
     content: {

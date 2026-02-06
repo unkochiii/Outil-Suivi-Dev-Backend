@@ -31,7 +31,7 @@ const reportSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Account",
-      default: null,
+      default: "6967cf8cd23c48acdf06475d",
       index: true,
     },
     place: {
