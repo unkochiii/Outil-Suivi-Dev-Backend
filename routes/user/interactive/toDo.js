@@ -66,8 +66,8 @@ router.get("/ToDo/my-toDo", isAuthenticated, async (req, res) => {
 router.get("/ToDo/:id", isAuthenticated, async (req, res) => {
   try {
     const todo = await ToDo.findById(req.params.id)
-      .populate("owner", "name email")
-      .populate("assignedTo", "name email");
+      .populate("owner", "projectName email")
+      .populate("assignedTo", "projectName email");
 
     if (!todo) {
       return res.status(404).json({ error: "ToDo non trouvé" });
